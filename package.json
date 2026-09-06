@@ -1,0 +1,13 @@
+{
+  "name": "wattly",
+  "version": "1.0.0",
+  "description": "",
+  "main": "biaya.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "echo 'Static build ready'"
+  },
+  "dependencies": {
+    "vite": "^5.0.0"
+  }
+}

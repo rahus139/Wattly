@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wattly | Home</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&family=Pixelify+Sans:wght@400..700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap');
+    </style>
+</head>
+<body>
+    <div class="head-container">
+        <header>
+        <a href="#" class="logo">Wattly</a>
+
+        <button class="menu-toggle" type="button" aria-label="Buka menu" aria-controls="site-nav" aria-expanded="false">
+            <span></span><span></span><span></span>
+        </button>
+
+        <nav id="site-nav">
+            <a href="index.html" class="menu active">Home</a>
+            <a href="About.html" class="menu">About</a>
+            <a href="calculator.html" class="menu">Calculator</a>
+            <a href="Elektronik.html" class="menu">Elektronik</a>
+            <a href="simulator.html" class="menu">Simulator</a>
+        </nav>
+        <button class="sidebar-backdrop" type="button" aria-label="Tutup menu"></button>
+    </header>
+    </div>
+    <section class="home home-page" id="home">
+        <div class="home-img">
+            <img src="main.png" alt="">
+        </div>
+        <div class="content">
+            <h1>Welcome to Wattly</h1>
+            <p>Kenali perangkat elektronik dan hitung perkiraan penggunaan listrikmu bersama Wattly.</p>
+            <div class="hero-actions">
+                <a href="simulator.html" class="btn">⚡ Smart Bill Simulator</a>
+                <a href="About.html" class="btn btn-secondary">Learn More</a>
+            </div>
+        </div>
+    </section>
+    <script src="nav.js"></script>
+</body>
+</html>

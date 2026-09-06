@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Bill Simulator | Wattly</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Google Fonts: Montserrat -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap');
+    </style>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- React 18, ReactDOM, & Babel Standalone -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-[#101b35] text-[#f4fbff] min-h-screen">
+    <!-- Navbar Standar Wattly -->
+    <div class="head-container">
+        <header>
+            <a href="index.html" class="logo">Wattly</a>
+
+            <button class="menu-toggle" type="button" aria-label="Buka menu" aria-controls="site-nav" aria-expanded="false">
+                <span></span><span></span><span></span>
+            </button>
+
+            <nav id="site-nav">
+                <a href="index.html" class="menu">Home</a>
+                <a href="About.html" class="menu">About</a>
+                <a href="calculator.html" class="menu">Calculator</a>
+                <a href="Elektronik.html" class="menu">Elektronik</a>
+                <a href="simulator.html" class="menu active">Simulator</a>
+            </nav>
+            <button class="sidebar-backdrop" type="button" aria-label="Tutup menu"></button>
+        </header>
+    </div>
+
+    <!-- Mount Point untuk React Component SmartBillSimulator -->
+    <div id="root" class="w-full"></div>
+
+    <!-- Script React Component Ringan & Selaras dengan Wattly -->
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- Katalog Alat Listrik ---
+        const APPLIANCE_CATALOG = [
+          { id: 'lampu-led', name: 'Lampu LED', wattage: 10, defaultHours: 8, category: 'Pencahayaan', icon: '💡' },
+          { id: 'lampu-pijar', name: 'Lampu Pijar', wattage: 60, defaultHours: 5, category: 'Pencahayaan', icon: '🔆' },
+          { id: 'ac-standar', name: 'AC Standar 1/2 PK', wattage: 350, defaultHours: 8, category: 'Pendingin', icon: '❄️' },
+          { id: 'ac-inverter', name: 'AC Inverter', wattage: 200, defaultHours: 8, category: 'Pendingin', icon: '🍃' },
+          { id: 'kulkas-1-pintu', name: 'Kulkas 1 Pintu', wattage: 100, defaultHours: 24, category: 'Dapur', icon: '🧊' },
+          { id: 'kipas-angin', name: 'Kipas Angin', wattage: 45, defaultHours: 6, category: 'Sirkulasi', icon: '🌀' },
+          { id: 'tv-display', name: 'Televisi', wattage: 75, defaultHours: 4, category: 'Hiburan', icon: '📺' },
+          { id: 'rice-cooker', name: 'Rice Cooker', wattage: 350, defaultHours: 2, category: 'Dapur', icon: '🍚' },
+          { id: 'mesin-kasir', name: 'Mesin Kasir / POS', wattage: 60, defaultHours: 10, category: 'UMKM', icon: '📟' },
+          { id: 'showcase-cooler', name: 'Showcase Cooler', wattage: 250, defaultHours: 24, category: 'UMKM', icon: '🥤' },
+        ];
+
+        // --- Definisi Ruangan 2D ---
+        const ROOMS = [
+          { id: 'living-room', name: 'Ruang Tamu', icon: '🛋️' },
+          { id: 'bedroom', name: 'Kamar Tidur', icon: '🛏️' },
+          { id: 'kitchen', name: 'Dapur', icon: '🍳' },
+          { id: 'business-umkm', name: 'Area UMKM', icon: '🏪' },
+        ];
+
+        const PLN_TARIFF = 1444.7; // Rp/kWh (Golongan R-1 1.300 VA)
+
+        function SmartBillSimulator() {
+          const [roomsState, setRoomsState] = useState({
+            'living-room': [
+              { instanceId: 'lr-1', id: 'lampu-led', name: 'Lampu LED', wattage: 10, hours: 8, icon: '💡' },
+              { instanceId: 'lr-2', id: 'tv-display', name: 'Televisi', wattage: 75, hours: 5, icon: '📺' },
+            ],
+            'bedroom': [
+              { instanceId: 'br-1', id: 'ac-inverter', name: 'AC Inverter', wattage: 200, hours: 8, icon: '🍃' },
+              { instanceId: 'br-2', id: 'lampu-led', name: 'Lampu LED', wattage: 10, hours: 7, icon: '💡' },
+            ],
+            'kitchen': [
+              { instanceId: 'kt-1', id: 'kulkas-1-pintu', name: 'Kulkas 1 Pintu', wattage: 100, hours: 24, icon: '🧊' },
+              { instanceId: 'kt-2', id: 'rice-cooker', name: 'Rice Cooker', wattage: 350, hours: 2, icon: '🍚' },
+            ],
+            'business-umkm': [
+              { instanceId: 'um-1', id: 'showcase-cooler', name: 'Showcase Cooler', wattage: 250, hours: 24, icon: '🥤' },
+              { instanceId: 'um-2', id: 'mesin-kasir', name: 'Mesin Kasir / POS', wattage: 60, hours: 10, icon: '📟' },
+            ],
+          });
+
+          const [activeRoomId, setActiveRoomId] = useState('living-room');
+          const [searchTerm, setSearchTerm] = useState('');
+          const [dragOverRoom, setDragOverRoom] = useState(null);
+          const [isSimulating, setIsSimulating] = useState(false);
+          const [showResultModal, setShowResultModal] = useState(false);
+
+          // Kunci scroll halaman saat modal/loading aktif
+          useEffect(() => {
+            if (showResultModal || isSimulating) {
+              const prev = document.body.style.overflow;
+              document.body.style.overflow = 'hidden';
+              return () => {
+                document.body.style.overflow = prev;
+              };
+            }
+          }, [showResultModal, isSimulating]);
+
+          // Tambah alat ke ruangan
+          const addAppliance = (targetRoomId, applianceId) => {
+            const item = APPLIANCE_CATALOG.find((a) => a.id === applianceId);
+            if (!item) return;
+
+            const newInst = {
+              instanceId: `${item.id}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+              id: item.id,
+              name: item.name,
+              wattage: item.wattage,
+              hours: item.defaultHours || 6,
+              icon: item.icon,
+            };
+
+            setRoomsState((prev) => ({
+              ...prev,
+              [targetRoomId]: [...(prev[targetRoomId] || []), newInst],
+            }));
+          };
+
+          // Update jam harian
+          const updateHours = (roomId, instanceId, newHours) => {
+            setRoomsState((prev) => ({
+              ...prev,
+              [roomId]: (prev[roomId] || []).map((item) =>
+                item.instanceId === instanceId ? { ...item, hours: newHours } : item
+              ),
+            }));
+          };
+
+          // Hapus alat
+          const removeAppliance = (roomId, instanceId) => {
+            setRoomsState((prev) => ({
+              ...prev,
+              [roomId]: (prev[roomId] || []).filter((item) => item.instanceId !== instanceId),
+            }));
+          };
+
+          // Kalkulasi total
+          const allItems = Object.entries(roomsState).flatMap(([rId, items]) => {
+            const room = ROOMS.find((r) => r.id === rId);
+            return items.map((item) => ({
+              ...item,
+              roomId: rId,
+              roomName: room ? room.name : rId,
+              dailyKwh: (item.wattage * item.hours) / 1000,
+            }));
+          });
+
+          const totalWatt = allItems.reduce((acc, curr) => acc + curr.wattage, 0);
+          const totalDailyKwh = allItems.reduce((acc, curr) => acc + curr.dailyKwh, 0);
+          const totalMonthlyKwh = totalDailyKwh * 30;
+          const totalMonthlyBill = Math.round(totalMonthlyKwh * PLN_TARIFF);
+
+          const activeRoom = ROOMS.find((r) => r.id === activeRoomId) || ROOMS[0];
+
+          // Jalankan simulasi (transisi halus 700ms)
+          const handleStartSimulation = () => {
+            setIsSimulating(true);
+            setTimeout(() => {
+              setIsSimulating(false);
+              setShowResultModal(true);
+            }, 700);
+          };
+
+          // Filter katalog alat
+          const filteredCatalog = APPLIANCE_CATALOG.filter(
+            (item) =>
+              item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              item.category.toLowerCase().includes(searchTerm.toLowerCase())
+          );
+
+          // Rekomendasi Cerdas Sederhana
+          const recommendations = [];
+          const heavyItems = allItems.filter((i) => i.wattage > 300 && i.hours > 8);
+          if (heavyItems.length > 0) {
+            recommendations.push({
+              type: 'warn',
+              text: `Perangkat berdaya tinggi (${heavyItems.map((h) => h.name).join(', ')}) menyala > 8 jam. Pasang timer untuk efisiensi.`,
+            });
+          }
+          if (allItems.some((i) => i.id === 'ac-standar')) {
+            recommendations.push({
+              type: 'tip',
+              text: 'Ganti AC Standar ke AC Inverter untuk menghemat daya pendingin hingga 40%.',
+            });
+          }
+          if (allItems.some((i) => i.id === 'lampu-pijar')) {
+            recommendations.push({
+              type: 'tip',
+              text: 'Ganti Lampu Pijar (60W) ke Lampu LED (10W) untuk memangkas konsumsi hingga 80%.',
+            });
+          }
+          if (totalMonthlyBill > 500000) {
+            recommendations.push({
+              type: 'tip',
+              text: 'Estimasi tagihan > Rp500.000. Atur suhu pendingin di 24°C-26°C dan cabut steker yang stanby.',
+            });
+          }
+          if (recommendations.length === 0) {
+            recommendations.push({
+              type: 'ok',
+              text: 'Pola penggunaan listrik saat ini sudah sangat efisien dan hemat!',
+            });
+          }
+
+          return (
+            <div className="w-full max-w-6xl mx-auto px-4 py-6 font-sans text-[#f4fbff]">
+              {/* Header Sederhana & Ramah Wattly */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 mb-6 border-b border-[rgba(112,226,224,0.2)]">
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-bold text-[#b9fff4]">
+                    Smart Bill Simulator
+                  </h1>
+                  <p className="text-sm text-[#f4fbff]/75 mt-1">
+                    Simulasikan pembagian beban listrik ruangan dan perkiraan tagihan PLN harian/bulanan.
+                  </p>
+                </div>
+
+                {/* Ringkasan Beban & Tombol Mulai */}
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="bg-[#1d3154] border border-[rgba(112,226,224,0.25)] rounded-xl px-4 py-2 text-right">
+                    <span className="text-[11px] text-[#b9fff4] block font-semibold">Total Beban</span>
+                    <span className="text-base font-bold text-white">
+                      {totalWatt} W <span className="text-xs font-normal text-[#f4fbff]/70">({totalDailyKwh.toFixed(2)} kWh/h)</span>
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleStartSimulation}
+                    className="px-5 py-2.5 rounded-xl font-bold text-white text-sm bg-gradient-to-r from-[#1ca7bd] to-[#1674bb] hover:from-[#ef8c6e] hover:to-[#df5f71] transition-all duration-300 shadow-md hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2"
+                  >
+                    <span>⚡ Mulai Simulasi</span>
+                    <span className="bg-white/20 text-xs px-2 py-0.5 rounded-full">{allItems.length}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Grid 2 Kolom: Kiri Denah 2D, Kanan Library */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                {/* Kolom Kiri: Denah 4 Ruangan (Grid 2x2) */}
+                <div className="lg:col-span-8 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-base font-semibold text-[#b9fff4] flex items-center gap-2">
+                      <span>Denah Ruangan (4 Area)</span>
+                      <span className="text-xs font-normal text-[#f4fbff]/60">
+                        • Klik ruangan untuk memilih target (+)
+                      </span>
+                    </h2>
+                    <span className="text-xs text-[#b9fff4] bg-[#1d3154] border border-[rgba(112,226,224,0.2)] px-2.5 py-0.5 rounded-md">
+                      Aktif: {activeRoom.name}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {ROOMS.map((room) => {
+                      const roomItems = roomsState[room.id] || [];
+                      const roomWatts = roomItems.reduce((acc, i) => acc + i.wattage, 0);
+                      const roomKwh = roomItems.reduce((acc, i) => acc + (i.wattage * i.hours) / 1000, 0);
+                      const isActive = activeRoomId === room.id;
+                      const isOver = dragOverRoom === room.id;
+
+                      return (
+                        <div
+                          key={room.id}
+                          onClick={() => setActiveRoomId(room.id)}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            setDragOverRoom(room.id);
+                          }}
+                          onDragLeave={() => setDragOverRoom(null)}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            setDragOverRoom(null);
+                            const applianceId = e.dataTransfer.getData('text/plain');
+                            if (applianceId) addAppliance(room.id, applianceId);
+                          }}
+                          className={`flex flex-col justify-between p-4 rounded-xl border transition-all duration-200 cursor-pointer min-h-[220px] bg-[#1d3154] ${
+                            isOver
+                              ? 'border-[#70e2e0] ring-2 ring-[#70e2e0]/40 bg-[#223961]'
+                              : isActive
+                              ? 'border-[#70e2e0] shadow-md shadow-cyan-950/30'
+                              : 'border-[rgba(112,226,224,0.2)] hover:border-[#70e2e0]/50'
+                          }`}
+                        >
+                          {/* Header Ruangan */}
+                          <div className="flex items-center justify-between pb-2 border-b border-[rgba(112,226,224,0.15)]">
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg">{room.icon}</span>
+                              <span className="font-bold text-sm text-[#f4fbff]">{room.name}</span>
+                            </div>
+                            <span className="text-xs text-[#b9fff4] font-medium bg-[#101b35] px-2 py-0.5 rounded border border-[rgba(112,226,224,0.2)]">
+                              {roomItems.length} alat
+                            </span>
+                          </div>
+
+                          {/* Isi Alat Ruangan */}
+                          <div className="py-2.5 flex-1 space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                            {roomItems.length === 0 ? (
+                              <div className="h-full min-h-[100px] flex flex-col items-center justify-center text-center p-3 border border-dashed border-[rgba(112,226,224,0.2)] rounded-lg text-xs text-[#f4fbff]/50">
+                                <span>Tarik alat ke sini</span>
+                                <span className="text-[11px] text-[#b9fff4]/60 mt-0.5">atau gunakan tombol (+)</span>
+                              </div>
+                            ) : (
+                              roomItems.map((item) => (
+                                <div
+                                  key={item.instanceId}
+                                  className="bg-[#101b35] p-2 rounded-lg border border-[rgba(112,226,224,0.15)] space-y-1.5"
+                                >
+                                  <div className="flex items-center justify-between gap-1 text-xs">
+                                    <span className="font-semibold text-[#f4fbff] truncate">
+                                      {item.icon} {item.name}
+                                    </span>
+                                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                                      <span className="text-[11px] text-[#b9fff4] font-medium">
+                                        {item.wattage}W
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          removeAppliance(room.id, item.instanceId);
+                                        }}
+                                        className="text-[#f4fbff]/40 hover:text-rose-300 px-1 font-bold text-sm"
+                                        title="Hapus"
+                                      >
+                                        &times;
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Slider Jam Pemakaian */}
+                                  <div className="flex items-center gap-2 text-[11px] text-[#f4fbff]/70">
+                                    <span className="flex-shrink-0">Durasi:</span>
+                                    <input
+                                      type="range"
+                                      min="0"
+                                      max="24"
+                                      step="0.5"
+                                      value={item.hours}
+                                      onClick={(e) => e.stopPropagation()}
+                                      onChange={(e) => updateHours(room.id, item.instanceId, parseFloat(e.target.value))}
+                                      className="w-full h-1 bg-[#1d3154] rounded appearance-none cursor-pointer accent-[#70e2e0]"
+                                    />
+                                    <span className="w-12 text-right font-medium text-[#b9fff4] flex-shrink-0">
+                                      {item.hours} jam
+                                    </span>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+
+                          {/* Footer Ruangan */}
+                          <div className="pt-2 border-t border-[rgba(112,226,224,0.15)] flex items-center justify-between text-xs text-[#f4fbff]/75">
+                            <span>Subtotal:</span>
+                            <span className="font-bold text-[#b9fff4]">
+                              {roomWatts} W <span className="font-normal text-[#f4fbff]/60">({roomKwh.toFixed(2)} kWh)</span>
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Kolom Kanan: Library Alat Listrik */}
+                <div className="lg:col-span-4 bg-[#1d3154] border border-[rgba(112,226,224,0.2)] rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-base font-semibold text-[#b9fff4]">Library Alat Listrik</h2>
+                    <span className="text-xs text-[#f4fbff]/60">{filteredCatalog.length} pilihan</span>
+                  </div>
+
+                  <input
+                    type="text"
+                    placeholder="Cari alat (cth: AC, Lampu)..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs rounded-lg bg-[#101b35] border border-[rgba(112,226,224,0.25)] text-[#f4fbff] placeholder-[#f4fbff]/40 focus:outline-none focus:border-[#70e2e0]"
+                  />
+
+                  <div className="space-y-2 max-h-[440px] overflow-y-auto pr-1">
+                    {filteredCatalog.map((item) => (
+                      <div
+                        key={item.id}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('text/plain', item.id);
+                        }}
+                        className="flex items-center justify-between p-2.5 rounded-lg bg-[#101b35] border border-[rgba(112,226,224,0.15)] hover:border-[#70e2e0]/40 transition-colors cursor-grab active:cursor-grabbing text-xs"
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <span className="text-base">{item.icon}</span>
+                          <div className="truncate">
+                            <div className="font-semibold text-[#f4fbff] truncate">{item.name}</div>
+                            <div className="text-[10px] text-[#f4fbff]/50">{item.category}</div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="text-[11px] font-bold text-[#b9fff4] bg-[#1d3154] px-2 py-0.5 rounded border border-[rgba(112,226,224,0.2)]">
+                            {item.wattage} W
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => addAppliance(activeRoomId, item.id)}
+                            title={`Tambahkan ke ${activeRoom.name}`}
+                            className="w-6 h-6 rounded bg-[#1ca7bd]/30 hover:bg-[#1ca7bd] text-[#b9fff4] hover:text-white flex items-center justify-center font-bold text-sm transition-colors"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Loading Ringan (Transisi Cepat) */}
+              {isSimulating && (
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-[#091024]/80 backdrop-blur-sm">
+                  <div className="bg-[#1d3154] border border-[#70e2e0]/40 rounded-xl p-6 text-center space-y-3 shadow-xl max-w-xs w-full mx-4">
+                    <div className="text-3xl animate-bounce">⚡</div>
+                    <div className="text-sm font-bold text-[#b9fff4]">Menghitung Estimasi...</div>
+                    <div className="text-xs text-[#f4fbff]/70">Menerapkan tarif PLN Rp 1.444/kWh</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Modal Hasil Analisis Bersih & Ringan */}
+              {showResultModal && (
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-[#091024]/90 backdrop-blur-md overflow-y-auto">
+                  <div className="relative w-full max-w-2xl bg-[#1d3154] border border-[#70e2e0]/40 rounded-2xl shadow-2xl overflow-hidden text-[#f4fbff] my-auto">
+                    {/* Header Modal */}
+                    <div className="flex items-center justify-between px-5 py-4 border-b border-[rgba(112,226,224,0.2)] bg-[#14233f]">
+                      <div>
+                        <h3 className="text-lg font-bold text-[#b9fff4]">Hasil Analisis Tagihan</h3>
+                        <p className="text-xs text-[#f4fbff]/70">Estimasi penggunaan listrik & tips efisiensi</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowResultModal(false)}
+                        className="text-xl text-[#f4fbff]/60 hover:text-white px-2 py-1"
+                      >
+                        &times;
+                      </button>
+                    </div>
+
+                    {/* Isi Modal */}
+                    <div className="p-5 space-y-5 max-h-[75vh] overflow-y-auto">
+                      {/* 3 Angka Utama */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="bg-[#101b35] p-3.5 rounded-xl border border-[rgba(112,226,224,0.2)]">
+                          <span className="text-xs text-[#f4fbff]/60 block">Energi Harian</span>
+                          <span className="text-xl font-bold text-[#70e2e0] mt-0.5 block">
+                            {totalDailyKwh.toFixed(2)} <span className="text-xs font-normal">kWh/hari</span>
+                          </span>
+                        </div>
+
+                        <div className="bg-[#101b35] p-3.5 rounded-xl border border-[rgba(112,226,224,0.2)]">
+                          <span className="text-xs text-[#f4fbff]/60 block">Konsumsi 30 Hari</span>
+                          <span className="text-xl font-bold text-[#ffd166] mt-0.5 block">
+                            {totalMonthlyKwh.toFixed(2)} <span className="text-xs font-normal">kWh/bln</span>
+                          </span>
+                        </div>
+
+                        <div className="bg-[#101b35] p-3.5 rounded-xl border border-[#70e2e0]/40">
+                          <span className="text-xs text-[#b9fff4] font-semibold block">Estimasi Tagihan</span>
+                          <span className="text-xl font-extrabold text-white mt-0.5 block">
+                            Rp {totalMonthlyBill.toLocaleString('id-ID')}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Rincian Kontribusi Alat Terbesar */}
+                      <div className="bg-[#101b35] p-4 rounded-xl border border-[rgba(112,226,224,0.2)] space-y-3">
+                        <div className="text-xs font-bold text-[#b9fff4] uppercase tracking-wide">
+                          Kontribusi Beban Alat Terpasang
+                        </div>
+                        <div className="space-y-2.5 max-h-44 overflow-y-auto pr-1 text-xs">
+                          {allItems
+                            .map((item) => ({
+                              ...item,
+                              cost: Math.round(item.dailyKwh * 30 * PLN_TARIFF),
+                              pct: totalDailyKwh > 0 ? (item.dailyKwh / totalDailyKwh) * 100 : 0,
+                            }))
+                            .sort((a, b) => b.dailyKwh - a.dailyKwh)
+                            .map((item) => (
+                              <div key={item.instanceId} className="space-y-1">
+                                <div className="flex justify-between text-[#f4fbff]">
+                                  <span>
+                                    {item.icon} {item.name} <span className="text-[10px] text-[#f4fbff]/50">({item.roomName})</span>
+                                  </span>
+                                  <span className="font-semibold text-[#ffd166]">
+                                    Rp {item.cost.toLocaleString('id-ID')}/bln ({item.pct.toFixed(0)}%)
+                                  </span>
+                                </div>
+                                <div className="w-full bg-[#1d3154] h-1.5 rounded-full overflow-hidden">
+                                  <div
+                                    className="bg-[#70e2e0] h-full rounded-full"
+                                    style={{ width: `${Math.min(100, Math.max(3, item.pct))}%` }}
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+
+                      {/* Rekomendasi Cerdas Singkat */}
+                      <div className="space-y-2">
+                        <div className="text-xs font-bold text-[#b9fff4] uppercase tracking-wide">
+                          Saran & Tips Efisiensi
+                        </div>
+                        <div className="space-y-2">
+                          {recommendations.map((r, idx) => (
+                            <div
+                              key={idx}
+                              className={`p-3 rounded-lg border text-xs flex items-start gap-2.5 ${
+                                r.type === 'warn'
+                                  ? 'bg-[#101b35] border-[#ff9f7a]/60 text-[#ff9f7a]'
+                                  : 'bg-[#101b35] border-[rgba(112,226,224,0.2)] text-[#f4fbff]/90'
+                              }`}
+                            >
+                              <span className="text-sm">{r.type === 'warn' ? '⚠️' : '💡'}</span>
+                              <span className="text-xs leading-relaxed text-[#f4fbff]/90">{r.text}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Footer Modal */}
+                    <div className="px-5 py-3 border-t border-[rgba(112,226,224,0.2)] bg-[#14233f] flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => window.print()}
+                        className="px-4 py-2 rounded-lg text-xs font-semibold text-[#b9fff4] bg-[#101b35] hover:bg-[#1d3154] border border-[#70e2e0]/30 transition-colors"
+                      >
+                        Cetak Laporan
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowResultModal(false)}
+                        className="px-4 py-2 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-[#1ca7bd] to-[#1674bb] hover:from-[#ef8c6e] hover:to-[#df5f71] transition-colors"
+                      >
+                        Tutup / Ubah Denah
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        // Mount React Component
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<SmartBillSimulator />);
+    </script>
+
+    <!-- Nav Script untuk Mobile Menu Toggle -->
+    <script src="nav.js"></script>
+</body>
+</html>
